@@ -71,6 +71,37 @@ class HealthDataPipeline:
                 print(f"Veri yükleme hatası: {e}")
                 return None
 
+    def explore_data(self):
+        """
+        Veri keşfi yap
+        """
+        if self.raw_data is None:
+            print("Önce veri yükleyin!")
+            return
+
+        print("=== VERİ KEŞFİ ===")
+        print(f"Veri boyutu: {self.raw_data.shape}")
+        print(f"Toplam bellek kullanımı: {self.raw_data.memory_usage(deep=True).sum() / 1024 ** 2:.2f} MB")
+
+        print("\n=== VERİ TİPLERİ ===")
+        print(self.raw_data.dtypes)
+
+        print("\n=== EKSİK VERİ ANALİZİ ===")
+        missing_data = self.raw_data.isnull().sum()
+        missing_percent = (missing_data / len(self.raw_data)) * 100
+        missing_df = pd.DataFrame({
+            'Eksik Veri Sayısı': missing_data,
+            'Oran (%)': missing_percent
+        })
+        print(missing_df[missing_df['Eksik Veri Sayısı'] > 0])
+
+        print("\n=== SAYISAL SÜTUNLAR İÇİN İSTATİSTİKLER ===")
+        numeric_cols = self.raw_data.select_dtypes(include=[np.number]).columns
+        if len(numeric_cols) > 0:
+            print(self.raw_data[numeric_cols].describe())
+
+        self.pipeline_steps.append("Veri keşfi tamamlandı")
+
 
 
 
