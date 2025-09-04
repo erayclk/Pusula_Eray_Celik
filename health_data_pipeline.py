@@ -45,6 +45,32 @@ class HealthDataPipeline:
         sns.set_theme(style="whitegrid")
         plt.rcParams['figure.figsize'] = [10, 6]
 
+        def load_data(self, data_path=None):
+            """
+            Veri dosyasını yükle
+
+            Args:
+                data_path (str): Veri dosyasının yolu
+            """
+            if data_path:
+                self.data_path = data_path
+
+            try:
+                if self.data_path.endswith('.xlsx'):
+                    self.raw_data = pd.read_excel(self.data_path)
+                elif self.data_path.endswith('.csv'):
+                    self.raw_data = pd.read_csv(self.data_path)
+                else:
+                    raise ValueError("Desteklenen dosya formatları: .xlsx, .csv")
+
+                print(f"Veri başarıyla yüklendi. Boyut: {self.raw_data.shape}")
+                self.pipeline_steps.append("Veri yüklendi")
+                return self.raw_data
+
+            except Exception as e:
+                print(f"Veri yükleme hatası: {e}")
+                return None
+
 
 
 
