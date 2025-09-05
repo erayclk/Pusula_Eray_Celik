@@ -525,6 +525,155 @@ class HealthDataPipeline:
         self.pipeline_steps.append("Sklearn pipeline ile model eğitimi tamamlandı")
         return clf, X_train, X_test, y_train, y_test
 
+    def generate_report(self, filepath: str = None):
+        """
+        EDA ve ön işleme adımlarının kısa bir Markdown raporunu oluştur ve kaydet.
+        """
+        if filepath is None:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filepath = os.path.join(self.output_dir, f'eda_preprocessing_report_{timestamp}.md')
+
+        lines = []
+        lines.append('# EDA ve Ön İşleme Raporu')
+        lines.append('')
+        if self.raw_data is not None:
+            lines.append('## Veri Özeti')
+            lines.append(f"- Şekil: {self.raw_data.shape}")
+            lines.append(f"- Bellek (MB): {self.raw_data.memory_usage(deep=True).sum() / 1024 ** 2:.2f}")
+            lines.append('')
+
+            missing = self.raw_data.isnull().sum()
+            missing = missing[missing > 0]
+            if not missing.empty:
+                lines.append('## Eksik Veri')
+                for col, val in missing.items():
+                    pct = (val / len(self.raw_data)) * 100
+                    lines.append(f"- {col}: {val} (%{pct:.2f})")
+                lines.append('')
+
+            numeric_cols = self.raw_data.select_dtypes(include=[np.number]).columns.tolist()
+            if numeric_cols:
+                lines.append('## Sayısal Sütunlar (describe)')
+                desc = self.raw_data[numeric_cols].describe().round(3)
+                lines.append(desc.to_markdown())
+                lines.append('')
+
+        lines.append('## Pipeline Adımları')
+        for i, step in enumerate(self.pipeline_steps, 1):
+            lines.append(f"{i}. {step}")
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
+
+        print(f"Rapor kaydedildi: {os.path.abspath(filepath)}")
+        return filepath
+
+    def save_pipeline(self, filepath):
+        """
+        Pipeline'ı kaydet
+
+        Args:
+            filepath (str): Kayıt dosya yolu
+        """
+        pipeline_data = {
+            'scaler': self.scaler,
+            'label_encoders': self.label_encoders,
+            'pipeline_steps': self.pipeline_steps,
+            'processed_data_shape': self.processed_data.shape if self.processed_data is not None else None
+        }
+
+        joblib.dump(pipeline_data, filepath)
+        print(f"Pipeline başarıyla kaydedildi: {filepath}")
+
+    def load_pipeline(self, filepath):
+        """
+        Kaydedilmiş pipeline'ı yükle
+
+        Args:
+            filepath (str): Pipeline dosya yolu
+        """
+        pipeline_data = joblib.load(filepath)
+
+        self.scaler = pipeline_data['scaler']
+        self.label_encoders = pipeline_data['label_encoders']
+        self.pipeline_steps = pipeline_data['pipeline_steps']
+
+        print(f"Pipeline başarıyla yüklendi: {filepath}")
+        print(f"Pipeline adımları: {self.pipeline_steps}")
+
+    def run_full_pipeline(self, target_column=None, save_pipeline=False, pipeline_path=None, model_type='auto'):
+        """
+        Tüm pipeline adımlarını çalıştır
+
+        Args:
+            target_column (str): Hedef değişken sütunu
+            save_pipeline (bool): Pipeline'ı kaydet
+            pipeline_path (str): Pipeline kayıt yolu
+            model_type (str): Model tipi ('auto', 'classification', 'regression')
+        """
+        print("🚀 TAM PIPELINE BAŞLADI!")
+
+        # 1. Veri yükleme
+        if self.raw_data is None:
+            if self.data_path is None:
+                print("❌ Veri dosya yolu belirtilmemiş!")
+                return None, None, None, None, None
+            self.load_data()
+
+        # 2. Veri keşfi
+        self.explore_data()
+
+        # 3. Veri temizliği
+        self.clean_data()
+
+        # 4. Özellik mühendisliği
+        # Hedef değişken kategorik ise korunacak sütunlar listesine ekle
+        preserve_columns = []
+        if target_column and target_column in self.processed_data.columns:
+            if self.processed_data[target_column].dtype == 'object':
+                preserve_columns.append(target_column)
+                print(f"Hedef değişken '{target_column}' korunuyor (one-hot encoding'den)")
+
+        self.feature_engineering(preserve_columns=preserve_columns)
+
+        # 5. Özellik ölçeklendirme
+        self.scale_features()
+
+        # 6. Modelleme hazırlığı
+        X, y = self.prepare_for_modeling(target_column)
+
+        if X is not None and y is not None:
+            # 7. Model eğitimi
+            model, X_train, X_test, y_train, y_test = self.train_model(X, y, model_type=model_type)
+
+            # 8. Pipeline kaydetme
+            if save_pipeline and pipeline_path:
+                self.save_pipeline(pipeline_path)
+
+            print("\n🎉 TAM PIPELINE BAŞARIYLA TAMAMLANDI!")
+            print(f"Toplam adım sayısı: {len(self.pipeline_steps)}")
+            print("Pipeline adımları:")
+            for i, step in enumerate(self.pipeline_steps, 1):
+                print(f"  {i}. {step}")
+
+            return model, X_train, X_test, y_train, y_test
+
+        return None, None, None, None, None
+
+    def get_pipeline_summary(self):
+        """
+        Pipeline özeti döndür
+        """
+        summary = {
+            'pipeline_steps': self.pipeline_steps,
+            'raw_data_shape': self.raw_data.shape if self.raw_data is not None else None,
+            'processed_data_shape': self.processed_data.shape if self.processed_data is not None else None,
+            'total_steps': len(self.pipeline_steps)
+        }
+
+        return summary
+
+
 
 
 
