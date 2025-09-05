@@ -157,6 +157,32 @@ class HealthDataPipeline:
 
         self.pipeline_steps.append("EDA görselleştirmeleri oluşturuldu")
 
+    def clean_data(self):
+        """
+        Veri temizliği yap
+        """
+        print("=== VERİ TEMİZLİĞİ BAŞLADI ===")
+
+        # Kopya oluştur
+        self.processed_data = self.raw_data.copy()
+
+        # Eksik veri doldurma stratejileri
+        self._fill_missing_values()
+
+        # Veri tipi dönüşümleri
+        self._convert_data_types()
+
+        # Duplicate kayıtları temizle
+        initial_rows = len(self.processed_data)
+        self.processed_data = self.processed_data.drop_duplicates()
+        final_rows = len(self.processed_data)
+
+        if initial_rows != final_rows:
+            print(f"Duplicate kayıtlar temizlendi: {initial_rows - final_rows} kayıt kaldırıldı")
+
+        print("Veri temizliği tamamlandı!")
+        self.pipeline_steps.append("Veri temizliği tamamlandı")
+
 
 
 
