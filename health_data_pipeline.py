@@ -45,31 +45,31 @@ class HealthDataPipeline:
         sns.set_theme(style="whitegrid")
         plt.rcParams['figure.figsize'] = [10, 6]
 
-        def load_data(self, data_path=None):
-            """
-            Veri dosyasını yükle
+    def load_data(self, data_path=None):
+        """
+        Veri dosyasını yükle
 
-            Args:
-                data_path (str): Veri dosyasının yolu
-            """
-            if data_path:
-                self.data_path = data_path
+        Args:
+            data_path (str): Veri dosyasının yolu
+        """
+        if data_path:
+            self.data_path = data_path
 
-            try:
-                if self.data_path.endswith('.xlsx'):
-                    self.raw_data = pd.read_excel(self.data_path)
-                elif self.data_path.endswith('.csv'):
-                    self.raw_data = pd.read_csv(self.data_path)
-                else:
-                    raise ValueError("Desteklenen dosya formatları: .xlsx, .csv")
+        try:
+            if self.data_path.endswith('.xlsx'):
+                self.raw_data = pd.read_excel(self.data_path)
+            elif self.data_path.endswith('.csv'):
+                self.raw_data = pd.read_csv(self.data_path)
+            else:
+                raise ValueError("Desteklenen dosya formatları: .xlsx, .csv")
 
-                print(f"Veri başarıyla yüklendi. Boyut: {self.raw_data.shape}")
-                self.pipeline_steps.append("Veri yüklendi")
-                return self.raw_data
+            print(f"Veri başarıyla yüklendi. Boyut: {self.raw_data.shape}")
+            self.pipeline_steps.append("Veri yüklendi")
+            return self.raw_data
 
-            except Exception as e:
-                print(f"Veri yükleme hatası: {e}")
-                return None
+        except Exception as e:
+            print(f"Veri yükleme hatası: {e}")
+            return None
 
     def explore_data(self):
         """
@@ -259,7 +259,6 @@ class HealthDataPipeline:
             print(f"Gereksiz sütunlar kaldırıldı: {existing_cols_to_drop}")
 
         print("Özellik mühendisliği tamamlandı!")
-
         self.pipeline_steps.append("Özellik mühendisliği tamamlandı")
 
     def scale_features(self):
@@ -601,7 +600,8 @@ class HealthDataPipeline:
         print(f"Pipeline başarıyla yüklendi: {filepath}")
         print(f"Pipeline adımları: {self.pipeline_steps}")
 
-    def run_full_pipeline(self, target_column=None, save_pipeline=False, pipeline_path=None, model_type='auto'):
+    def run_full_pipeline(self, target_column=None, save_pipeline=False, pipeline_path=None, model_type='auto',
+                          include_eda=True):
         """
         Tüm pipeline adımlarını çalıştır
 
@@ -610,6 +610,7 @@ class HealthDataPipeline:
             save_pipeline (bool): Pipeline'ı kaydet
             pipeline_path (str): Pipeline kayıt yolu
             model_type (str): Model tipi ('auto', 'classification', 'regression')
+            include_eda (bool): EDA görselleri ve rapor oluştur
         """
         print("🚀 TAM PIPELINE BAŞLADI!")
 
@@ -623,10 +624,15 @@ class HealthDataPipeline:
         # 2. Veri keşfi
         self.explore_data()
 
-        # 3. Veri temizliği
+        # 3. EDA Görselleri (opsiyonel)
+        if include_eda:
+            print("\n📊 EDA Görselleri oluşturuluyor...")
+            self.visualize_data()
+
+        # 4. Veri temizliği
         self.clean_data()
 
-        # 4. Özellik mühendisliği
+        # 5. Özellik mühendisliği
         # Hedef değişken kategorik ise korunacak sütunlar listesine ekle
         preserve_columns = []
         if target_column and target_column in self.processed_data.columns:
@@ -636,17 +642,22 @@ class HealthDataPipeline:
 
         self.feature_engineering(preserve_columns=preserve_columns)
 
-        # 5. Özellik ölçeklendirme
+        # 6. Özellik ölçeklendirme
         self.scale_features()
 
-        # 6. Modelleme hazırlığı
+        # 7. Modelleme hazırlığı
         X, y = self.prepare_for_modeling(target_column)
 
         if X is not None and y is not None:
-            # 7. Model eğitimi
+            # 8. Model eğitimi
             model, X_train, X_test, y_train, y_test = self.train_model(X, y, model_type=model_type)
 
-            # 8. Pipeline kaydetme
+            # 9. EDA Raporu (opsiyonel)
+            if include_eda:
+                print("\n📋 EDA raporu oluşturuluyor...")
+                self.generate_report()
+
+            # 10. Pipeline kaydetme
             if save_pipeline and pipeline_path:
                 self.save_pipeline(pipeline_path)
 
@@ -672,8 +683,3 @@ class HealthDataPipeline:
         }
 
         return summary
-
-
-
-
-
