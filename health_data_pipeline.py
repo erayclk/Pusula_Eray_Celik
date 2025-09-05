@@ -442,6 +442,89 @@ class HealthDataPipeline:
 
         return preprocessor
 
+    def train_with_sklearn_pipeline(self, X, y, test_size=0.2, random_state=42, model_type='auto'):
+        """
+        Sklearn ColumnTransformer + Pipeline kullanarak uçtan uca eğitim yap.
+        Sınıflandırmada hedef değişken string ise LabelEncoder uygulanır.
+        """
+        print("=== SKLEARN PIPELINE İLE MODEL EĞİTİMİ BAŞLADI ===")
+
+        # Hedef tipini belirle ve gerekirse encode et
+        y_encoded = y
+        if model_type == 'auto':
+            if y.dtype in ['object', 'bool'] or len(pd.Series(y).unique()) < 20:
+                model_type = 'classification'
+            else:
+                model_type = 'regression'
+
+        if model_type == 'classification' and y.dtype == 'object':
+            self.target_label_encoder = LabelEncoder()
+            y_encoded = self.target_label_encoder.fit_transform(y)
+            print("Hedef değişken LabelEncoder ile dönüştürüldü.")
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y_encoded, test_size=test_size, random_state=random_state
+        )
+
+        preprocessor = self._build_sklearn_preprocessing(X)
+
+        if model_type == 'classification':
+            from sklearn.ensemble import RandomForestClassifier
+            from sklearn.metrics import classification_report, confusion_matrix
+            model = RandomForestClassifier(n_estimators=100, random_state=random_state)
+        else:
+            from sklearn.ensemble import RandomForestRegressor
+            from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+            model = RandomForestRegressor(n_estimators=200, random_state=random_state)
+
+        clf = SkPipeline(steps=[('preprocess', preprocessor), ('model', model)])
+        clf.fit(X_train, y_train)
+
+        y_pred = clf.predict(X_test)
+
+        if model_type == 'classification':
+            from sklearn.metrics import classification_report, confusion_matrix
+            print("\n=== SINIFLANDIRMA (Sklearn Pipeline) ===")
+            print(classification_report(y_test, y_pred))
+
+            cm = confusion_matrix(y_test, y_pred)
+            plt.figure(figsize=(8, 6))
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+            plt.title('Confusion Matrix (Sklearn Pipeline)')
+            plt.ylabel('Gerçek Değerler')
+            plt.xlabel('Tahmin Edilen Değerler')
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            plot_path = os.path.join(self.output_dir, f'confusion_matrix_sklearn_{timestamp}.png')
+            plt.tight_layout()
+            plt.savefig(plot_path)
+            plt.close()
+            print(f"Confusion matrix görseli kaydedildi: {os.path.abspath(plot_path)}")
+        else:
+            from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+            print("\n=== REGRESYON (Sklearn Pipeline) ===")
+            mse = mean_squared_error(y_test, y_pred)
+            rmse = np.sqrt(mse)
+            mae = mean_absolute_error(y_test, y_pred)
+            r2 = r2_score(y_test, y_pred)
+            print(f"MSE: {mse:.4f} | RMSE: {rmse:.4f} | MAE: {mae:.4f} | R²: {r2:.4f}")
+
+            plt.figure(figsize=(10, 6))
+            plt.scatter(y_test, y_pred, alpha=0.6)
+            plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], 'r--', lw=2)
+            plt.xlabel('Gerçek Değerler')
+            plt.ylabel('Tahmin Edilen Değerler')
+            plt.title('Gerçek vs Tahmin (Sklearn Pipeline)')
+            plt.grid(True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            plot_path = os.path.join(self.output_dir, f'regression_actual_vs_pred_sklearn_{timestamp}.png')
+            plt.tight_layout()
+            plt.savefig(plot_path)
+            plt.close()
+            print(f"Regresyon görseli kaydedildi: {os.path.abspath(plot_path)}")
+
+        self.pipeline_steps.append("Sklearn pipeline ile model eğitimi tamamlandı")
+        return clf, X_train, X_test, y_train, y_test
+
 
 
 
