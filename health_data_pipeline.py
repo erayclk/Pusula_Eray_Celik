@@ -259,4 +259,59 @@ class HealthDataPipeline:
             print(f"Gereksiz sütunlar kaldırıldı: {existing_cols_to_drop}")
 
         print("Özellik mühendisliği tamamlandı!")
+
         self.pipeline_steps.append("Özellik mühendisliği tamamlandı")
+
+    def scale_features(self):
+        """
+        Sayısal özellikleri ölçeklendir
+        """
+        if self.processed_data is None:
+            print("Önce özellik mühendisliği yapın!")
+            return
+
+        print("=== ÖZELLİK ÖLÇEKLENDİRME BAŞLADI ===")
+
+        # Sayısal sütunları bul
+        numeric_cols = self.processed_data.select_dtypes(include=[np.number]).columns
+
+        if len(numeric_cols) > 0:
+            # StandardScaler uygula
+            self.processed_data[numeric_cols] = self.scaler.fit_transform(self.processed_data[numeric_cols])
+            print(f"Sayısal sütunlar standartlaştırıldı: {list(numeric_cols)}")
+
+        self.pipeline_steps.append("Özellik ölçeklendirme tamamlandı")
+
+    def prepare_for_modeling(self, target_column=None):
+        """
+        Modelleme için veriyi hazırla
+
+        Args:
+            target_column (str): Hedef değişken sütunu
+        """
+        if self.processed_data is None:
+            print("Önce veri işleme adımlarını tamamlayın!")
+            return None, None
+
+        print("=== MODELLEME HAZIRLIĞI ===")
+
+        # Hedef değişken belirtilmemişse, ilk sayısal sütunu kullan
+        if target_column is None:
+            numeric_cols = self.processed_data.select_dtypes(include=[np.number]).columns
+            if len(numeric_cols) > 0:
+                target_column = numeric_cols[0]
+                print(f"Hedef değişken otomatik seçildi: {target_column}")
+
+        if target_column not in self.processed_data.columns:
+            print(f"Hedef sütun bulunamadı: {target_column}")
+            return None, None
+
+        # Hedef değişkeni ayır
+        X = self.processed_data.drop(columns=[target_column])
+        y = self.processed_data[target_column]
+
+        print(f"Özellik matrisi boyutu: {X.shape}")
+        print(f"Hedef değişken boyutu: {y.shape}")
+
+        self.pipeline_steps.append("Modelleme hazırlığı tamamlandı")
+        return X, y
