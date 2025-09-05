@@ -315,3 +315,108 @@ class HealthDataPipeline:
 
         self.pipeline_steps.append("Modelleme hazırlığı tamamlandı")
         return X, y
+
+    def train_model(self, X, y, test_size=0.2, random_state=42, model_type='auto'):
+        """
+        Model eğitimi yap
+
+        Args:
+            X: Özellik matrisi
+            y: Hedef değişken
+            test_size: Test seti oranı
+            random_state: Rastgelelik için seed
+            model_type: Model tipi ('auto', 'classification', 'regression')
+        """
+        print("=== MODEL EĞİTİMİ BAŞLADI ===")
+
+        # Veriyi eğitim ve test setlerine ayır
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=random_state
+        )
+
+        print(f"Eğitim seti boyutu: {X_train.shape}")
+        print(f"Test seti boyutu: {X_test.shape}")
+
+        # Hedef değişken tipini otomatik belirle
+        if model_type == 'auto':
+            if y.dtype in ['object', 'bool'] or len(y.unique()) < 20:
+                model_type = 'classification'
+                print("Hedef değişken tipi otomatik belirlendi: Sınıflandırma")
+            else:
+                model_type = 'regression'
+                print("Hedef değişken tipi otomatik belirlendi: Regresyon")
+
+        # Model tipine göre uygun modeli seç
+        if model_type == 'classification':
+            from sklearn.ensemble import RandomForestClassifier
+            from sklearn.metrics import classification_report, confusion_matrix
+
+            model = RandomForestClassifier(n_estimators=100, random_state=random_state)
+            model.fit(X_train, y_train)
+
+            # Tahmin yap
+            y_pred = model.predict(X_test)
+
+            # Model performansını değerlendir
+            print("\n=== SINIFLANDIRMA MODEL PERFORMANSI ===")
+            print(classification_report(y_test, y_pred))
+
+            # Confusion matrix
+            cm = confusion_matrix(y_test, y_pred)
+            plt.figure(figsize=(8, 6))
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+            plt.title('Confusion Matrix')
+            plt.ylabel('Gerçek Değerler')
+            plt.xlabel('Tahmin Edilen Değerler')
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            plot_path = os.path.join(self.output_dir, f'confusion_matrix_{timestamp}.png')
+            plt.tight_layout()
+            plt.savefig(plot_path)
+            plt.close()
+            print(f"Confusion matrix görseli kaydedildi: {os.path.abspath(plot_path)}")
+
+        else:  # regression
+            from sklearn.ensemble import RandomForestRegressor
+            from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+
+            model = RandomForestRegressor(n_estimators=100, random_state=random_state)
+            model.fit(X_train, y_train)
+
+            # Tahmin yap
+            y_pred = model.predict(X_test)
+
+            # Model performansını değerlendir
+            print("\n=== REGRESYON MODEL PERFORMANSI ===")
+            mse = mean_squared_error(y_test, y_pred)
+            rmse = np.sqrt(mse)
+            mae = mean_absolute_error(y_test, y_pred)
+            r2 = r2_score(y_test, y_pred)
+
+            print(f"Mean Squared Error (MSE): {mse:.4f}")
+            print(f"Root Mean Squared Error (RMSE): {rmse:.4f}")
+            print(f"Mean Absolute Error (MAE): {mae:.4f}")
+            print(f"R² Score: {r2:.4f}")
+
+            # Gerçek vs Tahmin grafiği
+            plt.figure(figsize=(10, 6))
+            plt.scatter(y_test, y_pred, alpha=0.6)
+            plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
+            plt.xlabel('Gerçek Değerler')
+            plt.ylabel('Tahmin Edilen Değerler')
+            plt.title('Gerçek vs Tahmin Değerleri')
+            plt.grid(True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            plot_path = os.path.join(self.output_dir, f'regression_actual_vs_pred_{timestamp}.png')
+            plt.tight_layout()
+            plt.savefig(plot_path)
+            plt.close()
+            print(f"Regresyon görseli kaydedildi: {os.path.abspath(plot_path)}")
+
+        self.pipeline_steps.append("Model eğitimi tamamlandı")
+        return model, X_train, X_test, y_train, y_test
+
+
+
+
+
+
