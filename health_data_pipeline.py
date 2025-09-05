@@ -183,6 +183,25 @@ class HealthDataPipeline:
         print("Veri temizliği tamamlandı!")
         self.pipeline_steps.append("Veri temizliği tamamlandı")
 
+    def _fill_missing_values(self):
+        """
+        Eksik verileri doldur
+        """
+        # Kategorik sütunlar için mode kullan
+        categorical_cols = self.processed_data.select_dtypes(include=['object']).columns
 
+        for col in categorical_cols:
+            if self.processed_data[col].isnull().any():
+                mode_value = self.processed_data[col].mode()[0]
+                self.processed_data[col].fillna(mode_value, inplace=True)
+                print(f"'{col}' sütunundaki eksik veriler '{mode_value}' ile dolduruldu")
+
+        # Sayısal sütunlar için median kullan
+        numeric_cols = self.processed_data.select_dtypes(include=[np.number]).columns
+        for col in numeric_cols:
+            if self.processed_data[col].isnull().any():
+                median_value = self.processed_data[col].median()
+                self.processed_data[col].fillna(median_value, inplace=True)
+                print(f"'{col}' sütunundaki eksik veriler median ({median_value}) ile dolduruldu")
 
 
