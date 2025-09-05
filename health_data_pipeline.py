@@ -204,4 +204,59 @@ class HealthDataPipeline:
                 self.processed_data[col].fillna(median_value, inplace=True)
                 print(f"'{col}' sütunundaki eksik veriler median ({median_value}) ile dolduruldu")
 
+    def _convert_data_types(self):
+        """
+        Veri tiplerini dönüştür
+        """
+        # TedaviSuresi ve UygulamaSuresi sütunlarını temizle ve sayıya çevir
+        if 'TedaviSuresi' in self.processed_data.columns:
+            self.processed_data['TedaviSuresi'] = self.processed_data['TedaviSuresi'].astype(str).str.extract(
+                r'(\d+)').astype(float)
 
+        if 'UygulamaSuresi' in self.processed_data.columns:
+            self.processed_data['UygulamaSuresi'] = self.processed_data['UygulamaSuresi'].astype(str).str.extract(
+                r'(\d+)').astype(float)
+
+    def feature_engineering(self, preserve_columns=None):
+        """
+        Özellik mühendisliği yap
+
+        Args:
+            preserve_columns (list): One-hot encoding'den korunacak sütunlar
+        """
+        if self.processed_data is None:
+            print("Önce veri temizliği yapın!")
+            return
+
+        print("=== ÖZELLİK MÜHENDİSLİĞİ BAŞLADI ===")
+
+        # Korunacak sütunları belirt
+        if preserve_columns is None:
+            preserve_columns = []
+
+        # Alerji sütununu one-hot encoding ile dönüştür
+        if 'Alerji' in self.processed_data.columns:
+            alerji_dummies = self.processed_data['Alerji'].str.get_dummies(sep=',')
+            alerji_dummies = alerji_dummies.add_prefix('Alerji_')
+            self.processed_data = pd.concat([self.processed_data, alerji_dummies], axis=1)
+            self.processed_data.drop('Alerji', axis=1, inplace=True)
+            print("Alerji sütunu one-hot encoding ile dönüştürüldü")
+
+        # Kategorik sütunları one-hot encoding ile dönüştür (korunacak sütunlar hariç)
+        categorical_cols = self.processed_data.select_dtypes(include=['object']).columns
+        categorical_cols = [col for col in categorical_cols if col not in preserve_columns]
+
+        if len(categorical_cols) > 0:
+            self.processed_data = pd.get_dummies(self.processed_data, columns=categorical_cols, drop_first=True)
+            print(f"Kategorik sütunlar one-hot encoding ile dönüştürüldü: {list(categorical_cols)}")
+
+        # Gereksiz sütunları kaldır
+        cols_to_drop = ['HastaNo', 'Tanilar', 'TedaviAdi', 'UygulamaYerleri', 'KronikHastalik']
+        existing_cols_to_drop = [col for col in cols_to_drop if col in self.processed_data.columns]
+
+        if existing_cols_to_drop:
+            self.processed_data.drop(columns=existing_cols_to_drop, inplace=True)
+            print(f"Gereksiz sütunlar kaldırıldı: {existing_cols_to_drop}")
+
+        print("Özellik mühendisliği tamamlandı!")
+        self.pipeline_steps.append("Özellik mühendisliği tamamlandı")
