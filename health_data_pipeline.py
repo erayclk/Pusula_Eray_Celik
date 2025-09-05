@@ -102,6 +102,61 @@ class HealthDataPipeline:
 
         self.pipeline_steps.append("Veri keşfi tamamlandı")
 
+    def visualize_data(self, max_pairplot_features=5):
+        """
+        EDA görselleştirmeleri üret ve kaydet (histogramlar, korelasyon ısı haritası, sınırlı pairplot)
+        """
+        if self.raw_data is None:
+            print("Önce veri yükleyin!")
+            return
+
+        print("=== EDA GÖRSELLEŞTİRMELERİ OLUŞTURULUYOR ===")
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        # Histogramlar (sayısal sütunlar)
+        numeric_cols = self.raw_data.select_dtypes(include=[np.number]).columns.tolist()
+        if numeric_cols:
+            try:
+                ax = self.raw_data[numeric_cols].hist(bins=20, figsize=(14, 10))
+                plt.suptitle('Sayısal Sütunlar - Histogramlar')
+                hist_path = os.path.join(self.output_dir, f'histograms_{timestamp}.png')
+                plt.tight_layout()
+                plt.savefig(hist_path)
+                plt.close()
+                print(f"Histogram görseli kaydedildi: {os.path.abspath(hist_path)}")
+            except Exception as e:
+                print(f"Histogram oluşturulamadı: {e}")
+
+        # Korelasyon ısı haritası
+        if numeric_cols and len(numeric_cols) >= 2:
+            try:
+                corr = self.raw_data[numeric_cols].corr(numeric_only=True)
+                plt.figure(figsize=(12, 8))
+                sns.heatmap(corr, cmap='coolwarm', center=0)
+                plt.title('Korelasyon Isı Haritası')
+                corr_path = os.path.join(self.output_dir, f'correlation_heatmap_{timestamp}.png')
+                plt.tight_layout()
+                plt.savefig(corr_path)
+                plt.close()
+                print(f"Korelasyon ısı haritası kaydedildi: {os.path.abspath(corr_path)}")
+            except Exception as e:
+                print(f"Korelasyon ısı haritası oluşturulamadı: {e}")
+
+        # Pairplot (sınırlı sayıda özellik)
+        if numeric_cols:
+            try:
+                selected = numeric_cols[:max_pairplot_features]
+                sns.pairplot(self.raw_data[selected], corner=True)
+                pairplot_path = os.path.join(self.output_dir, f'pairplot_{timestamp}.png')
+                plt.savefig(pairplot_path)
+                plt.close()
+                print(f"Pairplot kaydedildi: {os.path.abspath(pairplot_path)}")
+            except Exception as e:
+                print(f"Pairplot oluşturulamadı: {e}")
+
+        self.pipeline_steps.append("EDA görselleştirmeleri oluşturuldu")
+
 
 
 
