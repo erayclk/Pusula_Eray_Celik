@@ -415,7 +415,32 @@ class HealthDataPipeline:
         self.pipeline_steps.append("Model eğitimi tamamlandı")
         return model, X_train, X_test, y_train, y_test
 
+    def _build_sklearn_preprocessing(self, X: pd.DataFrame) -> ColumnTransformer:
+        """
+        Sklearn tabanlı ön işleme pipeline'ı oluştur: KNNImputer + StandardScaler (sayısal),
+        most_frequent imputation + OneHotEncoder (kategorik)
+        """
+        numeric_features = X.select_dtypes(include=[np.number]).columns.tolist()
+        categorical_features = X.select_dtypes(exclude=[np.number]).columns.tolist()
 
+        numeric_transformer = SkPipeline(steps=[
+            ('imputer', KNNImputer(n_neighbors=5)),
+            ('scaler', StandardScaler())
+        ])
+
+        categorical_transformer = SkPipeline(steps=[
+            ('imputer', SimpleImputer(strategy='most_frequent')),
+            ('onehot', OneHotEncoder(handle_unknown='ignore'))
+        ])
+
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', numeric_transformer, numeric_features),
+                ('cat', categorical_transformer, categorical_features)
+            ], remainder='drop'
+        )
+
+        return preprocessor
 
 
 
