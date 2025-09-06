@@ -1,3 +1,4 @@
+# Eray ÇELİK eray0505@yandex.com
 # 🏥 Sağlık Verisi Analiz Pipeline Projesi
 
 Bu proje, sağlık verilerini analiz etmek için kapsamlı bir veri işleme ve modelleme pipeline'ı içermektedir. Proje, EDA (Exploratory Data Analysis), veri ön-işleme, özellik mühendisliği, ölçeklendirme ve modelleme adımlarını modüler bir `HealthDataPipeline` sınıfı ile sunar
